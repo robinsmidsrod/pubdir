@@ -1,0 +1,40 @@
+#!/usr/bin/perl
+
+use strict;
+
+unless (scalar @ARGV < 4) {
+	print "Usage: $0 <user> <group> <start-directory>\n\n";
+	exit;
+}
+
+my $dummy;
+my $user=$ARGV[0];
+my $group=$ARGV[1];
+my $folder=$ARGV[2] ? $ARGV[2] : '.'; # Default to current directory
+my $cmd="find \"$folder\"";
+
+($dummy, $dummy, my $uid, $dummy) = getpwnam($user);
+($dummy, $dummy, my $gid, $dummy) = getgrnam($group);
+
+unless (defined($uid) and defined($gid)) {
+	print STDERR "UID and GID not defined for $user.$group\n";
+	exit;
+}
+
+print "Getting files in $folder...\n";
+
+open(FILES, "$cmd|") or die "Cannot run command $cmd: $!\n";
+my @list=grep(chomp,<FILES>);
+close(FILES);
+
+foreach my $line (sort @list) {
+	if (-d $line) {
+		print "$line\n";
+		chown $uid,$gid,$line;
+		chmod 0755,$line;
+	} else {
+		print "\t$line\n";
+		chown $uid,$gid,$line;
+		chmod 0644,$line;
+	}
+}
